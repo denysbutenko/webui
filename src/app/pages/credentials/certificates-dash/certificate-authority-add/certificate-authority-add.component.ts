@@ -11,12 +11,15 @@ import * as _ from 'lodash';
 import { CaCreateType } from 'app/enums/ca-create-type.enum';
 import { CertificateAuthorityUpdate } from 'app/interfaces/certificate-authority.interface';
 import { CertificateProfile } from 'app/interfaces/certificate.interface';
+import { WebsocketError } from 'app/interfaces/websocket-error.interface';
 import { SummarySection } from 'app/modules/common/summary/summary.interface';
-import { EntityUtils } from 'app/modules/entity/utils';
 import { SnackbarService } from 'app/modules/snackbar/services/snackbar.service';
 import {
   CaIdentifierAndTypeComponent,
 } from 'app/pages/credentials/certificates-dash/certificate-authority-add/steps/ca-identifier-and-type/ca-identifier-and-type.component';
+import {
+  CaImportComponent,
+} from 'app/pages/credentials/certificates-dash/certificate-authority-add/steps/ca-import/ca-import.component';
 import {
   CertificateConstraintsComponent,
 } from 'app/pages/credentials/certificates-dash/forms/common-steps/certificate-constraints/certificate-constraints.component';
@@ -29,15 +32,14 @@ import {
 import {
   CertificateSubjectComponent,
 } from 'app/pages/credentials/certificates-dash/forms/common-steps/certificate-subject/certificate-subject.component';
-import {
-  CommonCertificateImportComponent,
-} from 'app/pages/credentials/certificates-dash/forms/common-steps/common-certificate-import/common-certificate-import.component';
 import { DialogService, WebSocketService } from 'app/services';
+import { ErrorHandlerService } from 'app/services/error-handler.service';
 import { IxSlideInService } from 'app/services/ix-slide-in.service';
 
 @UntilDestroy()
 @Component({
   templateUrl: './certificate-authority-add.component.html',
+  styleUrls: ['./certificate-authority-add.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class CertificateAuthorityAddComponent implements AfterViewInit {
@@ -49,7 +51,7 @@ export class CertificateAuthorityAddComponent implements AfterViewInit {
   @ViewChild(CertificateConstraintsComponent) constraints: CertificateConstraintsComponent;
 
   // Importing
-  @ViewChild(CommonCertificateImportComponent) import: CommonCertificateImportComponent;
+  @ViewChild(CaImportComponent) import: CaImportComponent;
 
   isLoading = false;
   summary: SummarySection[];
@@ -59,6 +61,7 @@ export class CertificateAuthorityAddComponent implements AfterViewInit {
     private cdr: ChangeDetectorRef,
     private translate: TranslateService,
     private snackbar: SnackbarService,
+    private errorHandler: ErrorHandlerService,
     private slideIn: IxSlideInService,
     private dialogService: DialogService,
   ) {}
@@ -84,7 +87,7 @@ export class CertificateAuthorityAddComponent implements AfterViewInit {
     return [this.identifierAndType, this.options, this.subject, this.constraints];
   }
 
-  getImportCaSteps(): [CaIdentifierAndTypeComponent, CommonCertificateImportComponent] {
+  getImportCaSteps(): [CaIdentifierAndTypeComponent, CaImportComponent] {
     return [this.identifierAndType, this.import];
   }
 
@@ -120,12 +123,11 @@ export class CertificateAuthorityAddComponent implements AfterViewInit {
           this.snackbar.success(this.translate.instant('Certificate authority created'));
           this.slideIn.close();
         },
-        error: (error) => {
+        error: (error: WebsocketError) => {
           this.isLoading = false;
-          this.cdr.markForCheck();
-
           // TODO: Need to update error handler to open step with an error.
-          new EntityUtils().errorReport(error, this.dialogService);
+          this.dialogService.error(this.errorHandler.parseWsError(error));
+          this.cdr.markForCheck();
         },
       });
   }

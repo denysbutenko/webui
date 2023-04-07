@@ -9,13 +9,13 @@ import { Observable, of } from 'rxjs';
 import { CaCreateType } from 'app/enums/ca-create-type.enum';
 import { mapToOptions } from 'app/helpers/options.helper';
 import { helptextSystemCa } from 'app/helptext/system/ca';
-import { helptextSystemCertificates } from 'app/helptext/system/certificates';
 import { CertificateProfile, CertificateProfiles } from 'app/interfaces/certificate.interface';
 import { Option } from 'app/interfaces/option.interface';
+import { WebsocketError } from 'app/interfaces/websocket-error.interface';
 import { SummaryProvider, SummarySection } from 'app/modules/common/summary/summary.interface';
-import { EntityUtils } from 'app/modules/entity/utils';
 import { IxValidatorsService } from 'app/modules/ix-forms/services/ix-validators.service';
 import { DialogService, WebSocketService } from 'app/services';
+import { ErrorHandlerService } from 'app/services/error-handler.service';
 
 @UntilDestroy()
 @Component({
@@ -43,7 +43,7 @@ export class CaIdentifierAndTypeComponent implements OnInit, SummaryProvider {
   profiles: CertificateProfiles;
   profileOptions$: Observable<Option[]>;
 
-  readonly helptext = helptextSystemCertificates;
+  readonly helptext = helptextSystemCa;
 
   readonly createTypes = new Map<CaCreateType, string>([
     [CaCreateType.Internal, this.translate.instant('Internal CA')],
@@ -55,6 +55,7 @@ export class CaIdentifierAndTypeComponent implements OnInit, SummaryProvider {
   constructor(
     private formBuilder: FormBuilder,
     private translate: TranslateService,
+    private errorHandler: ErrorHandlerService,
     private ws: WebSocketService,
     private dialogService: DialogService,
     private cdr: ChangeDetectorRef,
@@ -84,8 +85,8 @@ export class CaIdentifierAndTypeComponent implements OnInit, SummaryProvider {
           this.profileOptions$ = of(profileOptions);
           this.cdr.markForCheck();
         },
-        error: (error) => {
-          new EntityUtils().handleWsError(this, error, this.dialogService);
+        error: (error: WebsocketError) => {
+          this.dialogService.error(this.errorHandler.parseWsError(error));
         },
       });
   }
@@ -109,7 +110,7 @@ export class CaIdentifierAndTypeComponent implements OnInit, SummaryProvider {
     return summary;
   }
 
-  getPayload(): Pick<CaIdentifierAndTypeComponent['form']['value'], 'name' | 'create_type'> {
+  getPayload(): Pick<CaIdentifierAndTypeComponent['form']['value'], 'name' | 'create_type' | 'add_to_trusted_store'> {
     return _.pick(this.form.value, ['name', 'create_type', 'add_to_trusted_store']);
   }
 
